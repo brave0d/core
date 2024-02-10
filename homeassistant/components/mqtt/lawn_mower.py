@@ -40,6 +40,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -157,7 +158,8 @@ class MqttLawnMower(MqttEntity, LawnMowerEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_activity"})
         def message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            payload = str(self._value_template(msg.payload))
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if not payload:
                 _LOGGER.debug(
                     "Invalid empty activity payload from topic %s, for entity %s",
@@ -170,7 +172,7 @@ class MqttLawnMower(MqttEntity, LawnMowerEntity, RestoreEntity):
                 return
 
             try:
-                self._attr_activity = LawnMowerActivity(payload)
+                self._attr_activity = LawnMowerActivity(str(payload))
             except ValueError:
                 _LOGGER.error(
                     "Invalid activity for %s: '%s' (valid activies: %s)",

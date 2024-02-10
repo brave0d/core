@@ -50,6 +50,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -173,12 +174,13 @@ class MqttNumber(MqttEntity, RestoreNumber):
         def message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
             num_value: int | float | None
-            payload = str(self._value_template(msg.payload))
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if not payload.strip():
                 _LOGGER.debug("Ignoring empty state update from '%s'", msg.topic)
                 return
             try:
-                if payload == self._config[CONF_PAYLOAD_RESET]:
+                if (payload := str(payload)) == self._config[CONF_PAYLOAD_RESET]:
                     num_value = None
                 elif payload.isnumeric():
                     num_value = int(payload)

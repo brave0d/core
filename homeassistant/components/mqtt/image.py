@@ -31,7 +31,12 @@ from .mixins import (
     MqttEntity,
     async_setup_entity_entry_helper,
 )
-from .models import MessageCallbackType, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MessageCallbackType,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import get_mqtt_data, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,15 +194,18 @@ class MqttImage(MqttEntity, ImageEntity):
         def image_from_url_request_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
 
+            if (url_text := self._url_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             try:
-                url = cv.url(self._url_template(msg.payload))
-                self._attr_image_url = url
+                url = cv.url(url_text)
             except vol.Invalid:
                 _LOGGER.error(
                     "Invalid image URL '%s' received at topic %s",
                     msg.payload,
                     msg.topic,
                 )
+            else:
+                self._attr_image_url = url
             self._attr_image_last_updated = dt_util.utcnow()
             self._cached_image = None
             get_mqtt_data(self.hass).state_write_requests.write_state_request(self)

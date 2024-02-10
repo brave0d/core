@@ -69,7 +69,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttCommandTemplate, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MqttCommandTemplate,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import valid_publish_topic, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -273,8 +278,10 @@ class MqttWaterHeater(MqttTemperatureControlEntity, WaterHeaterEntity):
             msg: ReceiveMessage, template_name: str, attr: str, mode_list: str
         ) -> None:
             """Handle receiving listed mode via MQTT."""
-            payload = self.render_template(msg, template_name)
-
+            if (
+                payload := self.render_template(msg, template_name)
+            ) is PayloadSentinel.ERROR:
+                return
             if payload not in self._config[mode_list]:
                 _LOGGER.error("Invalid %s mode: %s", mode_list, payload)
             else:

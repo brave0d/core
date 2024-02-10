@@ -60,6 +60,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -303,7 +304,10 @@ class MqttHumidifier(MqttEntity, HumidifierEntity):
         @write_state_on_attr_change(self, {"_attr_is_on"})
         def state_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message."""
-            payload = self._value_templates[CONF_STATE](msg.payload)
+            if (
+                payload := self._value_templates[CONF_STATE](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if not payload:
                 _LOGGER.debug("Ignoring empty state from '%s'", msg.topic)
                 return

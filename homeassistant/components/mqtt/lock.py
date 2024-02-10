@@ -42,6 +42,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -193,9 +194,9 @@ class MqttLock(MqttEntity, LockEntity):
         )
         def message_received(msg: ReceiveMessage) -> None:
             """Handle new lock state messages."""
-            if (payload := self._value_template(msg.payload)) == self._config[
-                CONF_PAYLOAD_RESET
-            ]:
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
+            if payload == self._config[CONF_PAYLOAD_RESET]:
                 # Reset the state to `unknown`
                 self._attr_is_locked = None
             elif payload in self._valid_states:

@@ -29,7 +29,6 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.service_info.mqtt import ReceivePayloadType
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.json import JSON_DECODE_EXCEPTIONS, json_loads
 from homeassistant.util.percentage import (
@@ -68,7 +67,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttCommandTemplate, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MqttCommandTemplate,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import valid_publish_topic, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -368,7 +372,10 @@ class MqttCover(MqttEntity, CoverEntity):
         @write_state_on_attr_change(self, {"_attr_current_cover_tilt_position"})
         def tilt_message_received(msg: ReceiveMessage) -> None:
             """Handle tilt updates."""
-            payload = self._tilt_status_template(msg.payload)
+            if (
+                payload := self._tilt_status_template(msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
 
             if not payload:
                 _LOGGER.debug("Ignoring empty tilt message from '%s'", msg.topic)
@@ -383,7 +390,8 @@ class MqttCover(MqttEntity, CoverEntity):
         )
         def state_message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT state messages."""
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
 
             if not payload:
                 _LOGGER.debug("Ignoring empty state message from '%s'", msg.topic)
@@ -436,7 +444,11 @@ class MqttCover(MqttEntity, CoverEntity):
         )
         def position_message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT position messages."""
-            payload: ReceivePayloadType = self._get_position_template(msg.payload)
+            if (
+                payload := self._get_position_template(msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
+
             payload_dict: Any = None
 
             if not payload:

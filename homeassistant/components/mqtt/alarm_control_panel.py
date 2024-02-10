@@ -46,7 +46,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttCommandTemplate, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MqttCommandTemplate,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import valid_publish_topic, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -184,7 +189,9 @@ class MqttAlarm(MqttEntity, alarm.AlarmControlPanelEntity):
         @write_state_on_attr_change(self, {"_attr_state"})
         def message_received(msg: ReceiveMessage) -> None:
             """Run when new MQTT message has been received."""
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
+
             if payload not in (
                 STATE_ALARM_DISARMED,
                 STATE_ALARM_ARMED_HOME,

@@ -38,7 +38,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttValueTemplate, ReceiveMessage, ReceivePayloadType
+from .models import (
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+    ReceivePayloadType,
+)
 from .util import valid_subscribe_topic
 
 CONF_PAYLOAD_HOME = "payload_home"
@@ -123,7 +128,9 @@ class MqttDeviceTracker(MqttEntity, TrackerEntity):
         @write_state_on_attr_change(self, {"_location_name"})
         def message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            payload: ReceivePayloadType = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
+
             if payload == self._config[CONF_PAYLOAD_HOME]:
                 self._location_name = STATE_HOME
             elif payload == self._config[CONF_PAYLOAD_NOT_HOME]:

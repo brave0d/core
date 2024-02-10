@@ -48,6 +48,7 @@ from ..mixins import MQTT_ENTITY_COMMON_SCHEMA, MqttEntity, write_state_on_attr_
 from ..models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -204,7 +205,10 @@ class MqttLightTemplate(MqttEntity, LightEntity, RestoreEntity):
         )
         def state_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            state = self._value_templates[CONF_STATE_TEMPLATE](msg.payload)
+            if (
+                state := self._value_templates[CONF_STATE_TEMPLATE](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if state == STATE_ON:
                 self._attr_is_on = True
             elif state == STATE_OFF:
@@ -215,10 +219,14 @@ class MqttLightTemplate(MqttEntity, LightEntity, RestoreEntity):
                 _LOGGER.warning("Invalid state value received")
 
             if CONF_BRIGHTNESS_TEMPLATE in self._config:
+                if (
+                    brightness_payload := self._value_templates[
+                        CONF_BRIGHTNESS_TEMPLATE
+                    ](msg.payload)
+                ) is PayloadSentinel.ERROR:
+                    return
                 try:
-                    if brightness := int(
-                        self._value_templates[CONF_BRIGHTNESS_TEMPLATE](msg.payload)
-                    ):
+                    if brightness := int(brightness_payload):
                         self._attr_brightness = brightness
                     else:
                         _LOGGER.debug(
@@ -232,10 +240,14 @@ class MqttLightTemplate(MqttEntity, LightEntity, RestoreEntity):
                     )
 
             if CONF_COLOR_TEMP_TEMPLATE in self._config:
+                if (
+                    color_temp_payload := self._value_templates[
+                        CONF_COLOR_TEMP_TEMPLATE
+                    ](msg.payload)
+                ) is PayloadSentinel.ERROR:
+                    return
                 try:
-                    color_temp = self._value_templates[CONF_COLOR_TEMP_TEMPLATE](
-                        msg.payload
-                    )
+                    color_temp = color_temp_payload
                     self._attr_color_temp = (
                         int(color_temp) if color_temp != "None" else None
                     )
@@ -247,10 +259,15 @@ class MqttLightTemplate(MqttEntity, LightEntity, RestoreEntity):
                 and CONF_GREEN_TEMPLATE in self._config
                 and CONF_BLUE_TEMPLATE in self._config
             ):
+                red = self._value_templates[CONF_RED_TEMPLATE](msg.payload)
+                green = self._value_templates[CONF_GREEN_TEMPLATE](msg.payload)
+                blue = self._value_templates[CONF_BLUE_TEMPLATE](msg.payload)
+                if any(
+                    rgb_color is PayloadSentinel.ERROR
+                    for rgb_color in (red, green, blue)
+                ):
+                    return
                 try:
-                    red = self._value_templates[CONF_RED_TEMPLATE](msg.payload)
-                    green = self._value_templates[CONF_GREEN_TEMPLATE](msg.payload)
-                    blue = self._value_templates[CONF_BLUE_TEMPLATE](msg.payload)
                     if red == "None" and green == "None" and blue == "None":
                         self._attr_hs_color = None
                     else:
@@ -262,11 +279,14 @@ class MqttLightTemplate(MqttEntity, LightEntity, RestoreEntity):
                     _LOGGER.warning("Invalid color value received")
 
             if CONF_EFFECT_TEMPLATE in self._config:
-                effect = str(self._value_templates[CONF_EFFECT_TEMPLATE](msg.payload))
+                if (
+                    effect := self._value_templates[CONF_EFFECT_TEMPLATE](msg.payload)
+                ) is PayloadSentinel.ERROR:
+                    return
                 if (
                     effect_list := self._config[CONF_EFFECT_LIST]
                 ) and effect in effect_list:
-                    self._attr_effect = effect
+                    self._attr_effect = str(effect)
                 else:
                     _LOGGER.warning("Unsupported effect value received")
 

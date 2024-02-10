@@ -66,7 +66,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttCommandTemplate, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MqttCommandTemplate,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import valid_publish_topic, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -309,7 +314,8 @@ class MqttValve(MqttEntity, ValveEntity):
         )
         def state_message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT state messages."""
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             payload_dict: Any = None
             position_payload: Any = payload
             state_payload: Any = payload

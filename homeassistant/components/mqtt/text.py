@@ -44,6 +44,7 @@ from .models import (
     MessageCallbackType,
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -178,8 +179,9 @@ class MqttTextEntity(MqttEntity, TextEntity):
         @write_state_on_attr_change(self, {"_attr_native_value"})
         def handle_state_message_received(msg: ReceiveMessage) -> None:
             """Handle receiving state message via MQTT."""
-            payload = str(self._value_template(msg.payload))
-            self._attr_native_value = payload
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
+            self._attr_native_value = str(payload)
 
         add_subscription(topics, CONF_STATE_TOPIC, handle_state_message_received)
 

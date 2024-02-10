@@ -57,6 +57,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -212,7 +213,8 @@ class MqttSiren(MqttEntity, SirenEntity):
         @write_state_on_attr_change(self, {"_attr_is_on", "_extra_attributes"})
         def state_message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT state messages."""
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if not payload or payload == PAYLOAD_EMPTY_JSON:
                 _LOGGER.debug(
                     "Ignoring empty payload '%s' after rendering for topic %s",

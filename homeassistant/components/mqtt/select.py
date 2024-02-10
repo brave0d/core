@@ -36,6 +36,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -120,7 +121,8 @@ class MqttSelect(MqttEntity, SelectEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_current_option"})
         def message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            payload = str(self._value_template(msg.payload))
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if payload.lower() == "none":
                 self._attr_current_option = None
                 return
@@ -133,7 +135,7 @@ class MqttSelect(MqttEntity, SelectEntity, RestoreEntity):
                     self.options,
                 )
                 return
-            self._attr_current_option = payload
+            self._attr_current_option = str(payload)
 
         if self._config.get(CONF_STATE_TOPIC) is None:
             # Force into optimistic mode.

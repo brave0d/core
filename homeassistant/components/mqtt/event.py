@@ -131,7 +131,11 @@ class MqttEvent(MqttEntity, EventEntity):
                 return
             event_attributes: dict[str, Any] = {}
             event_type: str
-            payload = self._template(msg.payload, PayloadSentinel.DEFAULT)
+            if (
+                payload := self._template(msg.payload, PayloadSentinel.DEFAULT)
+            ) is PayloadSentinel.ERROR:
+                return
+
             if (
                 not payload
                 or payload is PayloadSentinel.DEFAULT

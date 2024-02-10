@@ -29,12 +29,15 @@ if TYPE_CHECKING:
     from .discovery import MQTTDiscoveryPayload
     from .tag import MQTTTagScanner
 
+from .const import TEMPLATE_ERRORS
+
 
 class PayloadSentinel(StrEnum):
     """Sentinel for `async_render_with_possible_json_value`."""
 
     NONE = "none"
     DEFAULT = "default"
+    ERROR = "error"
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -210,7 +213,7 @@ class MqttValueTemplate:
         payload: ReceivePayloadType,
         default: ReceivePayloadType | PayloadSentinel = PayloadSentinel.NONE,
         variables: TemplateVarsType = None,
-    ) -> ReceivePayloadType:
+    ) -> ReceivePayloadType | PayloadSentinel:
         """Render with possible json value or pass-though a received MQTT value."""
         rendered_payload: ReceivePayloadType
 
@@ -247,7 +250,7 @@ class MqttValueTemplate:
                         payload, variables=values
                     )
                 )
-            except Exception as exc:
+            except TEMPLATE_ERRORS as exc:
                 _LOGGER.error(
                     "%s: %s rendering template for entity '%s', template: '%s'",
                     type(exc).__name__,
@@ -255,7 +258,7 @@ class MqttValueTemplate:
                     self._entity.entity_id if self._entity else "n/a",
                     self._value_template.template,
                 )
-                raise exc
+                return PayloadSentinel.ERROR
             return rendered_payload
 
         _LOGGER.debug(
@@ -274,7 +277,7 @@ class MqttValueTemplate:
                     payload, default, variables=values
                 )
             )
-        except Exception as ex:
+        except TEMPLATE_ERRORS as ex:
             _LOGGER.error(
                 "%s: %s rendering template for entity '%s', template: "
                 "'%s', default value: %s and payload: %s",
@@ -285,7 +288,7 @@ class MqttValueTemplate:
                 default,
                 payload,
             )
-            raise ex
+            return PayloadSentinel.ERROR
         return rendered_payload
 
 

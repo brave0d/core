@@ -25,7 +25,12 @@ from .mixins import (
     send_discovery_done,
     update_device,
 )
-from .models import MqttValueTemplate, ReceiveMessage, ReceivePayloadType
+from .models import (
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+    ReceivePayloadType,
+)
 from .subscription import EntitySubscription
 from .util import get_mqtt_data, valid_subscribe_topic
 
@@ -136,7 +141,11 @@ class MQTTTagScanner(MqttDiscoveryDeviceUpdate):
         """Subscribe to MQTT topics."""
 
         async def tag_scanned(msg: ReceiveMessage) -> None:
-            tag_id = str(self._value_template(msg.payload, "")).strip()
+            if (
+                payload := self._value_template(msg.payload, "")
+            ) is PayloadSentinel.ERROR:
+                return
+            tag_id = str(payload).strip()
             if not tag_id:  # No output from template, ignore
                 return
 

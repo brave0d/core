@@ -108,9 +108,9 @@ from .discovery import (
 from .models import (
     MessageCallbackType,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
-    ReceivePayloadType,
 )
 from .subscription import (
     EntitySubscription,
@@ -527,8 +527,10 @@ class MqttAttributes(Entity):
         @log_messages(self.hass, self.entity_id)
         @write_state_on_attr_change(self, {"_attr_extra_state_attributes"})
         def attributes_message_received(msg: ReceiveMessage) -> None:
+            """Update extra state attributes."""
+            if (payload := attr_tpl(msg.payload)) is PayloadSentinel.ERROR:
+                return
             try:
-                payload = attr_tpl(msg.payload)
                 json_dict = json_loads(payload) if isinstance(payload, str) else None
                 if isinstance(json_dict, dict):
                     filtered_dict = {
@@ -636,8 +638,12 @@ class MqttAvailability(Entity):
         def availability_message_received(msg: ReceiveMessage) -> None:
             """Handle a new received MQTT availability message."""
             topic = msg.topic
-            payload: ReceivePayloadType
-            payload = self._avail_topics[topic][CONF_AVAILABILITY_TEMPLATE](msg.payload)
+            if (
+                payload := self._avail_topics[topic][CONF_AVAILABILITY_TEMPLATE](
+                    msg.payload
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload == self._avail_topics[topic][CONF_PAYLOAD_AVAILABLE]:
                 self._available[topic] = True
                 self._available_latest = True

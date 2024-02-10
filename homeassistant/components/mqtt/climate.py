@@ -88,6 +88,7 @@ from .mixins import (
 from .models import (
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -174,7 +175,6 @@ VALUE_TEMPLATE_KEYS = (
     CONF_FAN_MODE_STATE_TEMPLATE,
     CONF_HUMIDITY_STATE_TEMPLATE,
     CONF_MODE_STATE_TEMPLATE,
-    CONF_POWER_STATE_TEMPLATE,
     CONF_ACTION_TEMPLATE,
     CONF_PRESET_MODE_VALUE_TEMPLATE,
     CONF_SWING_MODE_STATE_TEMPLATE,
@@ -441,7 +441,10 @@ class MqttTemperatureControlEntity(MqttEntity, ABC):
         self, msg: ReceiveMessage, template_name: str, attr: str
     ) -> None:
         """Handle climate attributes coming via MQTT."""
-        payload = self.render_template(msg, template_name)
+        if (
+            payload := self.render_template(msg, template_name)
+        ) is PayloadSentinel.ERROR:
+            return
         if not payload:
             _LOGGER.debug(
                 "Invalid empty payload for attribute %s, ignoring update",
@@ -727,7 +730,11 @@ class MqttClimate(MqttTemperatureControlEntity, ClimateEntity):
         @write_state_on_attr_change(self, {"_attr_hvac_action"})
         def handle_action_received(msg: ReceiveMessage) -> None:
             """Handle receiving action via MQTT."""
-            payload = self.render_template(msg, CONF_ACTION_TEMPLATE)
+            if (
+                payload := self.render_template(msg, CONF_ACTION_TEMPLATE)
+            ) is PayloadSentinel.ERROR:
+                return
+
             if not payload or payload == PAYLOAD_NONE:
                 _LOGGER.debug(
                     "Invalid %s action: %s, ignoring",
@@ -779,7 +786,10 @@ class MqttClimate(MqttTemperatureControlEntity, ClimateEntity):
             msg: ReceiveMessage, template_name: str, attr: str, mode_list: str
         ) -> None:
             """Handle receiving listed mode via MQTT."""
-            payload = self.render_template(msg, template_name)
+            if (
+                payload := self.render_template(msg, template_name)
+            ) is PayloadSentinel.ERROR:
+                return
 
             if payload not in self._config[mode_list]:
                 _LOGGER.error("Invalid %s mode: %s", mode_list, payload)
@@ -836,7 +846,12 @@ class MqttClimate(MqttTemperatureControlEntity, ClimateEntity):
         @write_state_on_attr_change(self, {"_attr_preset_mode"})
         def handle_preset_mode_received(msg: ReceiveMessage) -> None:
             """Handle receiving preset mode via MQTT."""
-            preset_mode = self.render_template(msg, CONF_PRESET_MODE_VALUE_TEMPLATE)
+            if (
+                preset_mode := self.render_template(
+                    msg, CONF_PRESET_MODE_VALUE_TEMPLATE
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if preset_mode in [PRESET_NONE, PAYLOAD_NONE]:
                 self._attr_preset_mode = PRESET_NONE
                 return

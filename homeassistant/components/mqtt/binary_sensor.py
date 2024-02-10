@@ -44,7 +44,7 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttValueTemplate, ReceiveMessage
+from .models import MqttValueTemplate, PayloadSentinel, ReceiveMessage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -191,7 +191,8 @@ class MqttBinarySensor(MqttEntity, BinarySensorEntity, RestoreEntity):
                     self.hass, self._expire_after, self._value_is_expired
                 )
 
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if not payload.strip():  # No output from template, ignore
                 _LOGGER.debug(
                     (

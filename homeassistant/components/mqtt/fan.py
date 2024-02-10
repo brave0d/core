@@ -59,6 +59,7 @@ from .models import (
     MessageCallbackType,
     MqttCommandTemplate,
     MqttValueTemplate,
+    PayloadSentinel,
     PublishPayloadType,
     ReceiveMessage,
     ReceivePayloadType,
@@ -338,7 +339,7 @@ class MqttFan(MqttEntity, FanEntity):
                 entity=self,
             ).async_render_with_possible_json_value
 
-    def _prepare_subscribe_topics(self) -> None:
+    def _prepare_subscribe_topics(self) -> None:  # noqa: C901
         """(Re)Subscribe to topics."""
         topics: dict[str, Any] = {}
 
@@ -358,7 +359,10 @@ class MqttFan(MqttEntity, FanEntity):
         @write_state_on_attr_change(self, {"_attr_is_on"})
         def state_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message."""
-            payload = self._value_templates[CONF_STATE](msg.payload)
+            if (
+                payload := self._value_templates[CONF_STATE](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if not payload:
                 _LOGGER.debug("Ignoring empty state from '%s'", msg.topic)
                 return
@@ -376,9 +380,12 @@ class MqttFan(MqttEntity, FanEntity):
         @write_state_on_attr_change(self, {"_attr_percentage"})
         def percentage_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message for the percentage."""
-            rendered_percentage_payload = self._value_templates[ATTR_PERCENTAGE](
-                msg.payload
-            )
+            if (
+                rendered_percentage_payload := self._value_templates[ATTR_PERCENTAGE](
+                    msg.payload
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if not rendered_percentage_payload:
                 _LOGGER.debug("Ignoring empty speed from '%s'", msg.topic)
                 return
@@ -420,7 +427,10 @@ class MqttFan(MqttEntity, FanEntity):
         @write_state_on_attr_change(self, {"_attr_preset_mode"})
         def preset_mode_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message for preset mode."""
-            preset_mode = str(self._value_templates[ATTR_PRESET_MODE](msg.payload))
+            if (
+                preset_mode := self._value_templates[ATTR_PRESET_MODE](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if preset_mode == self._payload["PRESET_MODE_RESET"]:
                 self._attr_preset_mode = None
                 return
@@ -436,7 +446,7 @@ class MqttFan(MqttEntity, FanEntity):
                 )
                 return
 
-            self._attr_preset_mode = preset_mode
+            self._attr_preset_mode = str(preset_mode)
 
         add_subscribe_topic(CONF_PRESET_MODE_STATE_TOPIC, preset_mode_received)
 
@@ -445,7 +455,10 @@ class MqttFan(MqttEntity, FanEntity):
         @write_state_on_attr_change(self, {"_attr_oscillating"})
         def oscillation_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message for the oscillation."""
-            payload = self._value_templates[ATTR_OSCILLATING](msg.payload)
+            if (
+                payload := self._value_templates[ATTR_OSCILLATING](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if not payload:
                 _LOGGER.debug("Ignoring empty oscillation from '%s'", msg.topic)
                 return
@@ -462,7 +475,10 @@ class MqttFan(MqttEntity, FanEntity):
         @write_state_on_attr_change(self, {"_attr_current_direction"})
         def direction_received(msg: ReceiveMessage) -> None:
             """Handle new received MQTT message for the direction."""
-            direction = self._value_templates[ATTR_DIRECTION](msg.payload)
+            if (
+                direction := self._value_templates[ATTR_DIRECTION](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if not direction:
                 _LOGGER.debug("Ignoring empty direction from '%s'", msg.topic)
                 return

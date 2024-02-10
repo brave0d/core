@@ -395,9 +395,13 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_is_on"})
         def state_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages."""
-            payload = self._value_templates[CONF_STATE_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.NONE
-            )
+            if (
+                payload := self._value_templates[CONF_STATE_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.NONE
+                )
+            ) is PayloadSentinel.ERROR:
+                return
+
             if not payload:
                 _LOGGER.debug("Ignoring empty state message from '%s'", msg.topic)
                 return
@@ -422,9 +426,13 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_brightness"})
         def brightness_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for the brightness."""
-            payload = self._value_templates[CONF_BRIGHTNESS_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_BRIGHTNESS_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
+
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty brightness message from '%s'", msg.topic)
                 return
@@ -447,9 +455,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
             convert_color: Callable[..., tuple[int, ...]],
         ) -> tuple[int, ...] | None:
             """Handle new MQTT messages for RGBW and RGBWW."""
-            payload = self._value_templates[template](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[template](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return None
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug(
                     "Ignoring empty %s message from '%s'", color_mode, msg.topic
@@ -549,9 +560,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_color_mode"})
         def color_mode_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for color mode."""
-            payload = self._value_templates[CONF_COLOR_MODE_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_COLOR_MODE_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty color mode message from '%s'", msg.topic)
                 return
@@ -565,9 +579,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_color_mode", "_attr_color_temp"})
         def color_temp_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for color temperature."""
-            payload = self._value_templates[CONF_COLOR_TEMP_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_COLOR_TEMP_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty color temp message from '%s'", msg.topic)
                 return
@@ -583,9 +600,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_effect"})
         def effect_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for effect."""
-            payload = self._value_templates[CONF_EFFECT_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_EFFECT_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty effect message from '%s'", msg.topic)
                 return
@@ -599,9 +619,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_color_mode", "_attr_hs_color"})
         def hs_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for hs color."""
-            payload = self._value_templates[CONF_HS_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_HS_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty hs message from '%s'", msg.topic)
                 return
@@ -620,9 +643,12 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_color_mode", "_attr_xy_color"})
         def xy_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT messages for xy color."""
-            payload = self._value_templates[CONF_XY_VALUE_TEMPLATE](
-                msg.payload, PayloadSentinel.DEFAULT
-            )
+            if (
+                payload := self._value_templates[CONF_XY_VALUE_TEMPLATE](
+                    msg.payload, PayloadSentinel.DEFAULT
+                )
+            ) is PayloadSentinel.ERROR:
+                return
             if payload is PayloadSentinel.DEFAULT or not payload:
                 _LOGGER.debug("Ignoring empty xy-color message from '%s'", msg.topic)
                 return

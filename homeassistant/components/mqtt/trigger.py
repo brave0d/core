@@ -77,7 +77,7 @@ async def async_attach_trigger(
         """Listen for MQTT messages."""
         if wanted_payload is None or (
             (payload := value_template(mqttmsg.payload, PayloadSentinel.DEFAULT))
-            and payload is not PayloadSentinel.DEFAULT
+            and payload not in {PayloadSentinel.DEFAULT, PayloadSentinel.ERROR}
             and wanted_payload == payload
         ):
             data: dict[str, Any] = {

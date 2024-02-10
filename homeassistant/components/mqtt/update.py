@@ -38,7 +38,12 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MessageCallbackType, MqttValueTemplate, ReceiveMessage
+from .models import (
+    MessageCallbackType,
+    MqttValueTemplate,
+    PayloadSentinel,
+    ReceiveMessage,
+)
 from .util import valid_publish_topic, valid_subscribe_topic
 
 _LOGGER = logging.getLogger(__name__)
@@ -170,7 +175,10 @@ class MqttUpdate(MqttEntity, UpdateEntity, RestoreEntity):
         )
         def handle_state_message_received(msg: ReceiveMessage) -> None:
             """Handle receiving state message via MQTT."""
-            payload = self._templates[CONF_VALUE_TEMPLATE](msg.payload)
+            if (
+                payload := self._templates[CONF_VALUE_TEMPLATE](msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
 
             if not payload or payload == PAYLOAD_EMPTY_JSON:
                 _LOGGER.debug(
@@ -239,7 +247,12 @@ class MqttUpdate(MqttEntity, UpdateEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_latest_version"})
         def handle_latest_version_received(msg: ReceiveMessage) -> None:
             """Handle receiving latest version via MQTT."""
-            latest_version = self._templates[CONF_LATEST_VERSION_TEMPLATE](msg.payload)
+            if (
+                latest_version := self._templates[CONF_LATEST_VERSION_TEMPLATE](
+                    msg.payload
+                )
+            ) is PayloadSentinel.ERROR:
+                return
 
             if isinstance(latest_version, str) and latest_version != "":
                 self._attr_latest_version = latest_version

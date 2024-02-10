@@ -42,7 +42,7 @@ from .mixins import (
     async_setup_entity_entry_helper,
     write_state_on_attr_change,
 )
-from .models import MqttValueTemplate, ReceiveMessage
+from .models import MqttValueTemplate, PayloadSentinel, ReceiveMessage
 
 DEFAULT_NAME = "MQTT Switch"
 DEFAULT_PAYLOAD_ON = "ON"
@@ -125,7 +125,8 @@ class MqttSwitch(MqttEntity, SwitchEntity, RestoreEntity):
         @write_state_on_attr_change(self, {"_attr_is_on"})
         def state_message_received(msg: ReceiveMessage) -> None:
             """Handle new MQTT state messages."""
-            payload = self._value_template(msg.payload)
+            if (payload := self._value_template(msg.payload)) is PayloadSentinel.ERROR:
+                return
             if payload == self._state_on:
                 self._attr_is_on = True
             elif payload == self._state_off:

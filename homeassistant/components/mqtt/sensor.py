@@ -224,7 +224,7 @@ class MqttSensor(MqttEntity, RestoreSensor):
                 )
 
             payload = self._template(msg.payload, PayloadSentinel.DEFAULT)
-            if payload is PayloadSentinel.DEFAULT:
+            if payload in {PayloadSentinel.DEFAULT, PayloadSentinel.ERROR}:
                 return
             new_value = str(payload)
             if self._numeric_state_expected:
@@ -253,8 +253,11 @@ class MqttSensor(MqttEntity, RestoreSensor):
             self._attr_native_value = payload_datetime
 
         def _update_last_reset(msg: ReceiveMessage) -> None:
-            payload = self._last_reset_template(msg.payload)
-
+            """Update last reset attribute."""
+            if (
+                payload := self._last_reset_template(msg.payload)
+            ) is PayloadSentinel.ERROR:
+                return
             if not payload:
                 _LOGGER.debug("Ignoring empty last_reset message from '%s'", msg.topic)
                 return
